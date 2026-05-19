@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib.qianwen_client import QianwenClient
 from lib.baidu_client import BaiduClient
+from lib.translation_paths import cache_dir, latest_translation_path, project_label
 
 
 def continue_hook():
@@ -22,17 +23,12 @@ def continue_hook():
 
 def get_log_path(filename):
     """Return a Linux-friendly debug log path under ~/.cache."""
-    cache_dir = Path.home() / '.cache' / 'claude-code-translator'
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir / filename
+    log_dir = cache_dir()
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return log_dir / filename
 
 
-def get_latest_translation_path():
-    """Return the fallback file path for the latest translation."""
-    return get_log_path('latest_translation.md')
-
-
-def write_translation_file(original, translated, usage):
+def write_translation_file(original, translated, usage, project_cwd=None):
     """Write translation to a local file when the GUI cannot be shown."""
     usage_lines = []
     if usage:
@@ -49,6 +45,7 @@ def write_translation_file(original, translated, usage):
         "# Claude Code Translation",
         "",
         f"Updated: {datetime.now().isoformat(timespec='seconds')}",
+        f"Project: {project_label(project_cwd)}",
         "",
         "## Original",
         "",
@@ -61,7 +58,8 @@ def write_translation_file(original, translated, usage):
         "",
     ])
 
-    path = get_latest_translation_path()
+    path = latest_translation_path(project_cwd)
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         f.write(content)
     return path
@@ -131,6 +129,21 @@ def load_config():
         return json.load(f)
 
 
+def get_project_cwd(input_data):
+    """Get Claude Code's current project directory from hook input."""
+    cwd = input_data.get('cwd')
+    if isinstance(cwd, str) and cwd.strip():
+        return cwd
+    return None
+
+
+def scoped_project_cwd(config, project_cwd):
+    """Return project cwd only when project-scoped output is enabled."""
+    if config.get('project_scoped_output', True):
+        return project_cwd
+    return None
+
+
 def main():
     """Main hook handler."""
     try:
@@ -148,6 +161,7 @@ def main():
         if raw_input.startswith('\ufeff'):
             raw_input = raw_input[1:]
         input_data = json.loads(raw_input)
+        project_cwd = get_project_cwd(input_data)
 
         debug_log(config, json.dumps(input_data, ensure_ascii=False, indent=2) + "\n\n")
 
@@ -249,7 +263,12 @@ def main():
         )
 
         if output_mode == 'file':
-            path = write_translation_file(last_assistant_message, translated, usage)
+            path = write_translation_file(
+                last_assistant_message,
+                translated,
+                usage,
+                scoped_project_cwd(config, project_cwd),
+            )
             debug_log(config, f"Translation written to {path}\n")
             continue_hook()
             return
@@ -260,7 +279,12 @@ def main():
                 _, show_translation_result = import_dialogs()
             except Exception as e:
                 error_log(f"Tkinter dialogs unavailable for result window: {e}\n")
-                write_translation_file(last_assistant_message, translated, usage)
+                write_translation_file(
+                    last_assistant_message,
+                    translated,
+                    usage,
+                    scoped_project_cwd(config, project_cwd),
+                )
                 continue_hook()
                 return
 
@@ -268,7 +292,12 @@ def main():
             show_translation_result(last_assistant_message, translated, usage)
         except Exception as e:
             error_log(f"Unable to show translation result dialog: {e}\n")
-            write_translation_file(last_assistant_message, translated, usage)
+            write_translation_file(
+                last_assistant_message,
+                translated,
+                usage,
+                scoped_project_cwd(config, project_cwd),
+            )
         
         # Continue without adding context to Claude (since we showed it to user)
         continue_hook()

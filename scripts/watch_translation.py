@@ -7,8 +7,9 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-DEFAULT_PATH = Path.home() / ".cache" / "claude-code-translator" / "latest_translation.md"
+from lib.translation_paths import latest_translation_path
 
 
 def clear_screen():
@@ -26,6 +27,15 @@ def render_waiting(path):
     print(flush=True)
     print("Keep this pane open. It updates after Claude finishes a response.", flush=True)
     print("Press Ctrl+C to stop.", flush=True)
+
+
+def resolve_watch_path(args):
+    """Resolve watch path from CLI args."""
+    if args and args[0] == "--global":
+        return latest_translation_path()
+    if args:
+        return Path(args[0]).expanduser()
+    return latest_translation_path(Path.cwd())
 
 
 def render_content(path):
@@ -47,7 +57,7 @@ def render_content(path):
 
 def main():
     """Watch latest translation file and refresh on changes."""
-    path = Path(sys.argv[1]).expanduser() if len(sys.argv) > 1 else DEFAULT_PATH
+    path = resolve_watch_path(sys.argv[1:])
     last_mtime_ns = object()
 
     while True:

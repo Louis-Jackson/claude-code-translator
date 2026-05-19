@@ -9,7 +9,7 @@
 ## 主要特性
 
 - **只翻译输出**：你可以直接用英文和 Claude Code 沟通，Claude 不会看到本地中文译文。
-- **终端友好**：默认将最近一次译文写入 `~/.cache/claude-code-translator/latest_translation.md`，适合 SSH/服务器环境。
+- **终端友好**：默认按项目将最近一次译文写入 `~/.cache/claude-code-translator/projects/.../latest_translation.md`，适合 SSH/服务器环境。
 - **可选弹窗**：有图形桌面时可切换为 800x600 左右双栏 Tkinter 窗口。
 - **双引擎支持**：内置 **通义千问 (Qianwen)** 和 **百度翻译** 支持。
 - **交互可控**：可在翻译前确认，也支持一键复制中文译文。
@@ -68,21 +68,21 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 安装脚本只会注册 `Notification` 输出翻译 Hook，不会注册输入翻译 Hook。重启 Claude Code 即可生效。
 
-默认服务器模式会把最近一次译文写入：
+默认服务器模式会按项目隔离译文，写入：
 
 ```bash
-~/.cache/claude-code-translator/latest_translation.md
+~/.cache/claude-code-translator/projects/<project-slug>/latest_translation.md
 ```
 
-查看译文：
+在项目目录里查看当前项目译文：
 
 ```bash
-cat ~/.cache/claude-code-translator/latest_translation.md
+python3 scripts/watch_translation.py
 ```
 
 ### tmux 分屏查看
 
-如果你在 tmux 里使用 Claude Code，可以打开右侧实时译文 pane：
+如果你在 tmux 里使用 Claude Code，可以在每个项目目录里打开右侧实时译文 pane：
 
 ```bash
 python3 scripts/tmux_translation_pane.py
@@ -94,12 +94,18 @@ python3 scripts/tmux_translation_pane.py
 python3 scripts/tmux_translation_pane.py 50%
 ```
 
-这个 pane 会实时刷新 `~/.cache/claude-code-translator/latest_translation.md`。主 pane 继续运行 Claude Code，右侧只用于阅读中文译文。
+这个 pane 会实时刷新当前项目对应的译文文件。你可以开多个 Claude Code/tmux 窗口，每个项目会看到自己的翻译，不会互相覆盖。
 
 如果不想自动分屏，也可以手动运行 watcher：
 
 ```bash
 python3 scripts/watch_translation.py
+```
+
+如果你想看旧版全局译文文件：
+
+```bash
+python3 scripts/watch_translation.py --global
 ```
 
 如果你有 Linux 图形桌面，并想用弹窗，可安装 Tkinter 并设置 `output_mode`：
@@ -121,6 +127,7 @@ sudo apt install python3-tk
 | `provider` | 翻译服务商 (`qianwen` 或 `baidu`) | `qianwen` |
 | `translate_output` | 是否将 Claude 的英文回复翻译回中文显示 | `true` |
 | `output_mode` | 输出方式：`file` 或 `popup` | `file` |
+| `project_scoped_output` | 是否按 Claude Code 的当前项目目录隔离译文文件 | `true` |
 | `interactive_output` | 翻译 Claude 回复前是否先弹窗确认 | `false` |
 | `debug` | 是否将 Hook 调试日志写入 `~/.cache/claude-code-translator/` | `false` |
 

@@ -8,6 +8,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from lib.translation_paths import latest_translation_path
+
 
 def main():
     """Create a right-side tmux pane for translation output."""
@@ -21,8 +25,8 @@ def main():
         return 1
 
     script_path = Path(__file__).resolve().with_name("watch_translation.py")
-    translation_path = Path.home() / ".cache" / "claude-code-translator" / "latest_translation.md"
     pane_size = sys.argv[1] if len(sys.argv) > 1 else "40%"
+    translation_path = latest_translation_path(Path.cwd())
 
     command = " ".join([
         "python3",
