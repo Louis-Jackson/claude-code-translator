@@ -94,18 +94,18 @@ python3 scripts/tmux_translation_pane.py
 python3 scripts/tmux_translation_pane.py 50%
 ```
 
-这个 pane 会实时刷新当前项目对应的译文文件。你可以开多个 Claude Code/tmux 窗口，每个项目会看到自己的翻译，不会互相覆盖。
+这个 pane 会实时刷新当前项目对应的译文文件，并用终端 Markdown 渲染标题、列表和代码块。你可以开多个 Claude Code/tmux 窗口，每个项目会看到自己的翻译，不会互相覆盖。
 
 如果不想自动分屏，也可以手动运行 watcher：
 
 ```bash
-python3 scripts/watch_translation.py
+uv run --with-requirements requirements.txt python scripts/watch_translation.py
 ```
 
 如果你想看旧版全局译文文件：
 
 ```bash
-python3 scripts/watch_translation.py --global
+uv run --with-requirements requirements.txt python scripts/watch_translation.py --global
 ```
 
 如果你有 Linux 图形桌面，并想用弹窗，可安装 Tkinter 并设置 `output_mode`：

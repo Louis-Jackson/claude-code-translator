@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Watch the latest Claude Code translation file in a terminal pane."""
+"""Watch and render the latest Claude Code translation file in a terminal pane."""
 
 import shutil
 import subprocess
@@ -10,6 +10,19 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib.translation_paths import latest_translation_path
+
+
+def try_render_markdown(content):
+    """Render Markdown with rich when available."""
+    try:
+        from rich.console import Console
+        from rich.markdown import Markdown
+    except Exception:
+        return False
+
+    console = Console(force_terminal=True)
+    console.print(Markdown(content))
+    return True
 
 
 def clear_screen():
@@ -49,7 +62,12 @@ def render_content(path):
         print(f"Unable to read {path}: {exc}", flush=True)
         return
 
-    if shutil.which("bat"):
+    if try_render_markdown(content):
+        return
+
+    if shutil.which("glow"):
+        subprocess.run(["glow", "-"], input=content, text=True, check=False)
+    elif shutil.which("bat"):
         subprocess.run(["bat", "--style=plain", "--paging=never", str(path)], check=False)
     else:
         print(content, flush=True)

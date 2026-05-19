@@ -94,18 +94,18 @@ The default pane width is 40%. You can pass another width:
 python3 scripts/tmux_translation_pane.py 50%
 ```
 
-The pane watches the current project's translation file and refreshes whenever Claude finishes a translated response. You can run multiple Claude Code/tmux windows for different projects, and each project will see its own translations.
+The pane watches the current project's translation file, refreshes whenever Claude finishes a translated response, and renders Markdown headings, lists, and code blocks in the terminal. You can run multiple Claude Code/tmux windows for different projects, and each project will see its own translations.
 
 You can also run the watcher manually:
 
 ```bash
-python3 scripts/watch_translation.py
+uv run --with-requirements requirements.txt python scripts/watch_translation.py
 ```
 
 To watch the legacy global translation file:
 
 ```bash
-python3 scripts/watch_translation.py --global
+uv run --with-requirements requirements.txt python scripts/watch_translation.py --global
 ```
 
 If you have a Linux graphical desktop and want popups, install Tkinter and set `output_mode`:
