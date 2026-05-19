@@ -19,18 +19,25 @@
 
 ### Prerequisites
 - Python 3.8+
+- [uv](https://docs.astral.sh/uv/)：用于自动准备 Python 依赖，避免手动安装 `pip`
 - Linux 图形桌面环境
 - Tkinter：Debian/Ubuntu 可安装 `sudo apt install python3-tk`
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
 - Qianwen API key (get one at [阿里云百炼](https://bailian.console.aliyun.com/)) OR
 - Baidu AI Translation API key (get one at [百度翻译开放平台](https://fanyi-api.baidu.com/))
 
-1. **下载与安装依赖**
+安装 uv：
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+1. **下载项目**
    ```bash
-   git clone https://github.com/iChenwin/claude-code-translator.git
+   git clone https://github.com/Louis-Jackson/claude-code-translator.git
    cd claude-code-translator
-   python3 -m pip install -r requirements.txt
    ```
+
+   不需要执行 `pip install`。安装脚本会让 Claude Code Hook 通过 `uv run --with-requirements requirements.txt ...` 自动准备依赖。
 
 2. **配置 API Key**
    将 `config.example.json` 重命名为 `config.json` 并填入密钥。
@@ -53,6 +60,11 @@
 3. **安装 Hook**
    ```bash
    python3 install.py
+   ```
+
+   如果你希望安装脚本本身也通过 uv 运行：
+   ```bash
+   uv run python install.py
    ```
 
 安装脚本只会注册 `Notification` 输出翻译 Hook，不会注册输入翻译 Hook。重启 Claude Code 即可生效。

@@ -19,18 +19,25 @@ This plugin hooks into [Claude Code](https://docs.anthropic.com/en/docs/claude-c
 
 ### Prerequisites
 - Python 3.8+
+- [uv](https://docs.astral.sh/uv/) to manage Python dependencies without installing `pip`
 - A Linux graphical desktop session
 - Tkinter: on Debian/Ubuntu, install `sudo apt install python3-tk`
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
 - Qianwen API key (get one at [阿里云百炼](https://bailian.console.aliyun.com/)) OR
 - Baidu AI Translation API key (get one at [百度翻译开放平台](https://fanyi-api.baidu.com/))
 
-1. **Clone & Install Dependencies**
+Install uv:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+1. **Clone the Project**
    ```bash
-   git clone https://github.com/iChenwin/claude-code-translator.git
+   git clone https://github.com/Louis-Jackson/claude-code-translator.git
    cd claude-code-translator
-   python3 -m pip install -r requirements.txt
    ```
+
+   You do not need to run `pip install`. The installer writes a Claude Code hook that runs through `uv run --with-requirements requirements.txt ...`.
 
 2. **Configure API Key**
    Rename `config.example.json` to `config.json` and add your API key.
@@ -53,6 +60,11 @@ This plugin hooks into [Claude Code](https://docs.anthropic.com/en/docs/claude-c
 3. **Install Hooks**
    ```bash
    python3 install.py
+   ```
+
+   To run the installer itself through uv:
+   ```bash
+   uv run python install.py
    ```
 
 The installer only registers the `Notification` output translation hook. It does not install an input translation hook, so Claude only sees the prompts you type. Restart Claude Code for changes to take effect.
