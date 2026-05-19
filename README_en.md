@@ -2,16 +2,16 @@
 
 [简体中文](./README.md)
 
-**Save 30%~50% on token costs by automatically translating prompts to English.**
+**Keep Claude Code conversations in English while reading a local Chinese translation.**
 
-This plugin hooks into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to translate non-English input (Chinese, Japanese, etc.) into English before it reaches Claude. This not only saves tokens but often improves Claude's reasoning quality.
+This plugin hooks into [Claude Code](https://docs.anthropic.com/en/docs/claude-code) after Claude responds. It reads the latest English assistant message from the transcript, translates it to Chinese through Qianwen or Baidu, and shows a local Tkinter side-by-side window. The Chinese translation is not added back to Claude Code's context.
 
 ## Features
 
-- **Seamless**: Automatically detects and translates non-English input.
-- **Smart**: Ignores code blocks, file paths, and URLs.
+- **Output-only**: Type English prompts and keep Claude's context in English.
+- **Local Side-by-Side Window**: Shows the English original and Chinese translation in an 800x600 local window.
 - **Flexible**: Supports **Qianwen (Alibaba)** and **Baidu** translation APIs.
-- **Native Experience**: Fully compatible with VS Code integration and session management.
+- **Controllable**: Optionally asks before translating and includes a copy button for the Chinese result.
 
 ![Claude Code Translator Screenshot](./screenshot.png)
 
@@ -19,6 +19,8 @@ This plugin hooks into [Claude Code](https://docs.anthropic.com/en/docs/claude-c
 
 ### Prerequisites
 - Python 3.8+
+- A Linux graphical desktop session
+- Tkinter: on Debian/Ubuntu, install `sudo apt install python3-tk`
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
 - Qianwen API key (get one at [阿里云百炼](https://bailian.console.aliyun.com/)) OR
 - Baidu AI Translation API key (get one at [百度翻译开放平台](https://fanyi-api.baidu.com/))
@@ -27,7 +29,7 @@ This plugin hooks into [Claude Code](https://docs.anthropic.com/en/docs/claude-c
    ```bash
    git clone https://github.com/iChenwin/claude-code-translator.git
    cd claude-code-translator
-   pip install -r requirements.txt
+   python3 -m pip install -r requirements.txt
    ```
 
 2. **Configure API Key**
@@ -50,10 +52,12 @@ This plugin hooks into [Claude Code](https://docs.anthropic.com/en/docs/claude-c
 
 3. **Install Hooks**
    ```bash
-   python install.py
+   python3 install.py
    ```
 
-Restart Claude Code, and you're good to go!
+The installer only registers the `Notification` output translation hook. It does not install an input translation hook, so Claude only sees the prompts you type. Restart Claude Code for changes to take effect.
+
+> On Linux, a graphical desktop session is required for the Tkinter window, such as an available `$DISPLAY` or Wayland session. Without a GUI, set `interactive_output` to `false`; if the result window cannot open, the hook writes the latest translation to `~/.cache/claude-code-translator/latest_translation.md`.
 
 ## Configuration (`config.json`)
 
@@ -61,10 +65,11 @@ Restart Claude Code, and you're good to go!
 | :--- | :--- | :--- |
 | `provider` | `qianwen` or `baidu` | `qianwen` |
 | `translate_output` | Show a popup with Chinese translation of Claude's response (with Copy button)? | `true` |
-| `interactive_input` | Show a popup to review/edit the English translation before sending? | `true` |
+| `interactive_output` | Ask before translating Claude's response? | `false` |
+| `debug` | Write hook debug logs to `~/.cache/claude-code-translator/` | `false` |
 
 ## Uninstallation
 
 ```bash
-python install.py --uninstall
+python3 install.py --uninstall
 ```

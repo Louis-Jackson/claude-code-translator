@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Installation script for Claude Code Translation Plugin.
 
-This script adds hook configurations to ~/.claude/settings.json
-to enable automatic translation of Chinese input/output.
+This script adds an output-translation hook to ~/.claude/settings.json.
+The installed hook reads Claude Code's English responses and shows a local
+Chinese translation window without adding that translation to Claude's context.
 """
 
 import json
-import os
+import shlex
 import sys
 from pathlib import Path
 
@@ -20,77 +21,136 @@ def get_claude_settings_path():
 def get_hook_commands():
     """Get the hook command configurations."""
     # Get absolute path to hooks directory
-    hooks_dir = Path(__file__).parent / 'hooks'
+    hooks_dir = Path(__file__).resolve().parent / 'hooks'
     input_hook = hooks_dir / 'translate_input.py'
     output_hook = hooks_dir / 'translate_output.py'
 
-    # Use forward slashes for cross-platform compatibility
-    input_hook_str = str(input_hook).replace('\\', '/')
-    output_hook_str = str(output_hook).replace('\\', '/')
+    python_executable = sys.executable or 'python3'
 
     return {
-        "input": f"python \"{input_hook_str}\"",
-        "output": f"python \"{output_hook_str}\""
+        "input": _shell_command(python_executable, input_hook),
+        "output": _shell_command(python_executable, output_hook),
+        "legacy_input": _legacy_commands(input_hook),
+        "legacy_output": _legacy_commands(output_hook),
     }
 
 
-def install_hooks():
-    """Install translation hooks to Claude settings."""
-    settings_path = get_claude_settings_path()
+def _shell_command(python_executable, script_path):
+    """Build a Linux-safe hook command."""
+    return f"{shlex.quote(str(python_executable))} {shlex.quote(str(script_path))}"
 
-    # Create .claude directory if it doesn't exist
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load existing settings or create new
+def _legacy_commands(script_path):
+    """Commands used by older versions of this installer."""
+    script_str = str(script_path).replace('\\', '/')
+    return {
+        f'python "{script_str}"',
+        f'python3 "{script_str}"',
+        f'python {shlex.quote(script_str)}',
+        f'python3 {shlex.quote(script_str)}',
+    }
+
+
+def _hook_entry(command):
+    """Create a Claude Code command hook entry."""
+    return {
+        "matcher": "",
+        "hooks": [
+            {
+                "type": "command",
+                "command": command
+            }
+        ]
+    }
+
+
+def _remove_commands(settings, hook_name, commands):
+    """Remove only this plugin's hook commands, preserving other user hooks."""
+    hook_groups = settings.get('hooks', {}).get(hook_name)
+    if not hook_groups:
+        return False
+
+    removed = False
+    kept_groups = []
+    for group in hook_groups:
+        original_hooks = group.get('hooks', [])
+        kept_hooks = [
+            hook for hook in original_hooks
+            if not (
+                hook.get('type') == 'command'
+                and hook.get('command') in commands
+            )
+        ]
+
+        if len(kept_hooks) != len(original_hooks):
+            removed = True
+
+        if kept_hooks:
+            updated_group = dict(group)
+            updated_group['hooks'] = kept_hooks
+            kept_groups.append(updated_group)
+
+    if kept_groups:
+        settings['hooks'][hook_name] = kept_groups
+    else:
+        del settings['hooks'][hook_name]
+
+    if not settings.get('hooks'):
+        settings.pop('hooks', None)
+
+    return removed
+
+
+def _load_settings(settings_path):
+    """Load Claude settings or return an empty settings object."""
     if settings_path.exists():
         with open(settings_path, 'r', encoding='utf-8') as f:
             try:
-                settings = json.load(f)
+                return json.load(f)
             except json.JSONDecodeError:
-                settings = {}
-    else:
-        settings = {}
+                return {}
+    return {}
+
+
+def _write_settings(settings_path, settings):
+    """Write Claude settings."""
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(settings_path, 'w', encoding='utf-8') as f:
+        json.dump(settings, f, indent=2, ensure_ascii=False)
+
+
+def install_hooks():
+    """Install output translation hook to Claude settings."""
+    settings_path = get_claude_settings_path()
+
+    settings = _load_settings(settings_path)
 
     # Ensure hooks section exists
     if 'hooks' not in settings:
         settings['hooks'] = {}
 
     hooks = get_hook_commands()
+    known_input_commands = {hooks["input"], *hooks["legacy_input"]}
+    known_output_commands = {hooks["output"], *hooks["legacy_output"]}
 
-    # Add UserPromptSubmit hook for input translation
-    settings['hooks']['UserPromptSubmit'] = [
-        {
-            "matcher": "",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": hooks["input"]
-                }
-            ]
-        }
-    ]
+    # Remove old input hook from this plugin so Claude only sees what you type.
+    _remove_commands(settings, 'UserPromptSubmit', known_input_commands)
 
-    # Add Notification hook for output translation (optional)
-    settings['hooks']['Notification'] = [
-        {
-            "matcher": "",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": hooks["output"]
-                }
-            ]
-        }
-    ]
+    # Avoid duplicate output hooks while preserving unrelated Notification hooks.
+    if 'hooks' not in settings:
+        settings['hooks'] = {}
+    _remove_commands(settings, 'Notification', known_output_commands)
+    if 'hooks' not in settings:
+        settings['hooks'] = {}
+    settings['hooks'].setdefault('Notification', []).append(_hook_entry(hooks["output"]))
 
     # Write settings back
-    with open(settings_path, 'w', encoding='utf-8') as f:
-        json.dump(settings, f, indent=2, ensure_ascii=False)
+    _write_settings(settings_path, settings)
 
-    print(f"Hooks installed successfully to: {settings_path}")
+    print(f"Output translation hook installed successfully to: {settings_path}")
     print("\nConfigured hooks:")
-    print(f"  - UserPromptSubmit: {hooks['input']}")
     print(f"  - Notification: {hooks['output']}")
+    print("\nInput translation is not installed. Claude Code will only see the English prompts you type.")
     print("\nTo disable output translation, set 'translate_output': false in config.json")
     print("\nRestart Claude Code for changes to take effect.")
 
@@ -103,31 +163,25 @@ def uninstall_hooks():
         print("No Claude settings file found. Nothing to uninstall.")
         return
 
-    with open(settings_path, 'r', encoding='utf-8') as f:
-        try:
-            settings = json.load(f)
-        except json.JSONDecodeError:
-            print("Invalid settings file. Nothing to uninstall.")
-            return
+    settings = _load_settings(settings_path)
+    if not settings:
+        print("Invalid or empty settings file. Nothing to uninstall.")
+        return
 
     if 'hooks' not in settings:
         print("No hooks configured. Nothing to uninstall.")
         return
 
-    # Remove our hooks
+    hooks = get_hook_commands()
+    known_input_commands = {hooks["input"], *hooks["legacy_input"]}
+    known_output_commands = {hooks["output"], *hooks["legacy_output"]}
+
     hooks_removed = False
-    for hook_name in ['UserPromptSubmit', 'Notification']:
-        if hook_name in settings['hooks']:
-            del settings['hooks'][hook_name]
-            hooks_removed = True
+    hooks_removed |= _remove_commands(settings, 'UserPromptSubmit', known_input_commands)
+    hooks_removed |= _remove_commands(settings, 'Notification', known_output_commands)
 
     if hooks_removed:
-        # Clean up empty hooks section
-        if not settings['hooks']:
-            del settings['hooks']
-
-        with open(settings_path, 'w', encoding='utf-8') as f:
-            json.dump(settings, f, indent=2, ensure_ascii=False)
+        _write_settings(settings_path, settings)
 
         print("Translation hooks uninstalled successfully.")
     else:

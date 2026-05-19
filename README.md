@@ -2,16 +2,16 @@
 
 [English](./README_en.md) | [加入讨论](https://github.com/iChenwin/claude-code-translator/issues)
 
-**通过将提示词自动翻译为英文，节省 30%~50% 的 Token 消耗。**
+**保持 Claude Code 英文沟通，同时在本地弹窗查看中文译文。**
 
-这是一个非侵入式的 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 插件。它会在后台通过通义千问或百度 API 将你的中文/日文等输入自动翻译成英文。这不仅能大幅节省 Token，还能让 Claude 发挥更强的逻辑推理能力。
+这是一个非侵入式的 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 输出翻译 Hook。它会在 Claude 回复结束后读取英文回复，通过通义千问或百度 API 翻译成中文，并在本地 Tkinter 弹窗中以左右双栏显示原文和译文。中文译文不会写回 Claude Code 的上下文。
 
 ## 主要特性
 
-- **无感介入**：自动检测非英文输入并翻译，保留代码块、URL 和文件路径原样。
-- **高兼容性**：完美支持 VS Code 集成模式、REPL 和甚至文件读写操作。
+- **只翻译输出**：你可以直接用英文和 Claude Code 沟通，Claude 不会看到本地中文译文。
+- **本地弹窗**：回复结束后弹出 800x600 左右双栏窗口，左侧英文原文，右侧中文译文。
 - **双引擎支持**：内置 **通义千问 (Qianwen)** 和 **百度翻译** 支持。
-- **交互可控**：支持在发送前预览并修改翻译后的英文 Prompt，以及在接收回复后**弹窗显示中文翻译结果（支持一键复制）**。
+- **交互可控**：可在翻译前确认，也支持一键复制中文译文。
 
 ![Claude Code Translator Screenshot](./screenshot.png)
 
@@ -19,6 +19,8 @@
 
 ### Prerequisites
 - Python 3.8+
+- Linux 图形桌面环境
+- Tkinter：Debian/Ubuntu 可安装 `sudo apt install python3-tk`
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
 - Qianwen API key (get one at [阿里云百炼](https://bailian.console.aliyun.com/)) OR
 - Baidu AI Translation API key (get one at [百度翻译开放平台](https://fanyi-api.baidu.com/))
@@ -27,7 +29,7 @@
    ```bash
    git clone https://github.com/iChenwin/claude-code-translator.git
    cd claude-code-translator
-   pip install -r requirements.txt
+   python3 -m pip install -r requirements.txt
    ```
 
 2. **配置 API Key**
@@ -50,10 +52,12 @@
 
 3. **安装 Hook**
    ```bash
-   python install.py
+   python3 install.py
    ```
 
-重启 Claude Code 即可生效。
+安装脚本只会注册 `Notification` 输出翻译 Hook，不会注册输入翻译 Hook。重启 Claude Code 即可生效。
+
+> Linux 下需要可用的图形桌面环境，例如设置了 `$DISPLAY` 或 Wayland 图形会话，否则 Tkinter 弹窗无法显示。如果没有图形环境，可将 `interactive_output` 设为 `false`，Hook 会在弹窗失败时把最近一次译文写入 `~/.cache/claude-code-translator/latest_translation.md`。
 
 ## 配置选项 (`config.json`)
 
@@ -61,10 +65,11 @@
 | :--- | :--- | :--- |
 | `provider` | 翻译服务商 (`qianwen` 或 `baidu`) | `qianwen` |
 | `translate_output` | 是否将 Claude 的英文回复翻译回中文显示 | `true` |
-| `interactive_input` | 发送前是否弹窗确认/修改英文 Prompt | `true` |
+| `interactive_output` | 翻译 Claude 回复前是否先弹窗确认 | `false` |
+| `debug` | 是否将 Hook 调试日志写入 `~/.cache/claude-code-translator/` | `false` |
 
 ## 卸载
 
 ```bash
-python install.py --uninstall
+python3 install.py --uninstall
 ```

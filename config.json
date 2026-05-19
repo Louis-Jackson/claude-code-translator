@@ -10,6 +10,6 @@
     "app_id": "your-baidu-app-id"
   },
   "translate_output": true,
-  "interactive_input": true,
-  "interactive_output": true
+  "interactive_output": false,
+  "debug": false
 }

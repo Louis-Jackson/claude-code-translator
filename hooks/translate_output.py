@@ -5,13 +5,90 @@ import sys
 import json
 import os
 import io
+from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib.qianwen_client import QianwenClient
 from lib.baidu_client import BaiduClient
-from lib.dialogs import show_confirm_dialog, show_translation_result
+
+
+def continue_hook():
+    """Tell Claude Code to continue without adding context."""
+    print(json.dumps({"result": "continue"}))
+
+
+def get_log_path(filename):
+    """Return a Linux-friendly debug log path under ~/.cache."""
+    cache_dir = Path.home() / '.cache' / 'claude-code-translator'
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / filename
+
+
+def get_latest_translation_path():
+    """Return the fallback file path for the latest translation."""
+    return get_log_path('latest_translation.md')
+
+
+def write_translation_file(original, translated, usage):
+    """Write translation to a local file when the GUI cannot be shown."""
+    usage_lines = []
+    if usage:
+        usage_lines = [
+            "",
+            "## Usage",
+            "",
+            f"- Total tokens: {usage.get('total_tokens', 0)}",
+            f"- Prompt tokens: {usage.get('prompt_tokens', 0)}",
+            f"- Completion tokens: {usage.get('completion_tokens', 0)}",
+        ]
+
+    content = "\n".join([
+        "# Claude Code Translation",
+        "",
+        "## Original",
+        "",
+        original,
+        "",
+        "## Chinese Translation",
+        "",
+        translated,
+        *usage_lines,
+        "",
+    ])
+
+    path = get_latest_translation_path()
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    return path
+
+
+def debug_log(config, message):
+    """Write debug logs only when explicitly enabled."""
+    if not config.get('debug', False):
+        return
+
+    try:
+        with open(get_log_path('output_hook.log'), 'a', encoding='utf-8') as f:
+            f.write(message)
+    except Exception:
+        pass
+
+
+def error_log(message):
+    """Best-effort error logging outside Claude's context."""
+    try:
+        with open(get_log_path('output_hook_error.log'), 'a', encoding='utf-8') as f:
+            f.write(message)
+    except Exception:
+        pass
+
+
+def import_dialogs():
+    """Import Tkinter dialogs lazily so hooks can skip safely without Tk."""
+    from lib.dialogs import show_confirm_dialog, show_translation_result
+    return show_confirm_dialog, show_translation_result
 
 
 def get_translation_client(config):
@@ -54,6 +131,8 @@ def load_config():
 def main():
     """Main hook handler."""
     try:
+        config = load_config()
+
         # Read input from stdin
         # Ensure we are reading UTF-8
         try:
@@ -67,22 +146,20 @@ def main():
             raw_input = raw_input[1:]
         input_data = json.loads(raw_input)
 
-        # Debug logging
-        with open('d:/code/src/claude-translator/debug_output_hook.log', 'a', encoding='utf-8') as f:
-            f.write(json.dumps(input_data, ensure_ascii=False, indent=2) + "\n\n")
+        debug_log(config, json.dumps(input_data, ensure_ascii=False, indent=2) + "\n\n")
 
         # Check if this is an assistant message notification
         # Check if this is an idle prompt notification (meaning Claude finished responding)
         notification_type = input_data.get('notification_type', '')
         if notification_type not in ['idle_prompt', 'permission_prompt']:
             # Not a relevant event
-            print(json.dumps({"result": "continue"}))
+            continue_hook()
             return
 
         # Get the transcript path
         transcript_path = input_data.get('transcript_path', '')
         if not transcript_path or not os.path.exists(transcript_path):
-            print(json.dumps({"result": "continue"}))
+            continue_hook()
             return
 
         # Read the last line of the transcript file
@@ -105,23 +182,18 @@ def main():
                     except json.JSONDecodeError:
                         continue
         except Exception as e:
-            # Log error reading transcript
-            with open('d:/code/src/claude-translator/debug_output_error.log', 'a', encoding='utf-8') as f:
-                f.write(f"Error reading transcript: {e}\n")
-            print(json.dumps({"result": "continue"}))
+            error_log(f"Error reading transcript: {e}\n")
+            continue_hook()
             return
 
         if not last_assistant_message:
             # No assistant message found
-            print(json.dumps({"result": "continue"}))
+            continue_hook()
             return
-
-        # Load config
-        config = load_config()
 
         # Check if output translation is enabled
         if not config.get('translate_output', True):
-            print(json.dumps({"result": "continue"}))
+            continue_hook()
             return
 
         # Initialize client based on provider
@@ -131,45 +203,71 @@ def main():
         # (We check if it has significant Chinese content to avoid double translation)
         chinese_char_count = sum(1 for c in last_assistant_message if '\u4e00' <= c <= '\u9fff')
         if chinese_char_count > len(last_assistant_message) * 0.3:
-            print(json.dumps({"result": "continue"}))
+            continue_hook()
             return
 
         # Check if interactive mode is enabled
         interactive_output = config.get('interactive_output', True)
+        show_confirm_dialog = None
+        show_translation_result = None
 
         if interactive_output:
+            try:
+                show_confirm_dialog, show_translation_result = import_dialogs()
+            except Exception as e:
+                error_log(f"Tkinter dialogs unavailable before confirmation: {e}\n")
+                continue_hook()
+                return
+
             # Ask user if they want to translate
             # Use the first 500 chars for preview
             preview_msg = last_assistant_message[:500] + "..." if len(last_assistant_message) > 500 else last_assistant_message
-            if not show_confirm_dialog(preview_msg):
-                # User declined translation
-                print(json.dumps({"result": "continue"}))
+            try:
+                should_translate = show_confirm_dialog(preview_msg)
+            except Exception as e:
+                error_log(f"Unable to show confirmation dialog: {e}\n")
+                continue_hook()
                 return
 
-        # Debug logging before translation
-        with open('d:/code/src/claude-translator/debug_output_hook.log', 'a', encoding='utf-8') as f:
-            f.write(f"Translating message (len={len(last_assistant_message)}):\n{last_assistant_message}\n\n")
+            if not should_translate:
+                # User declined translation
+                continue_hook()
+                return
+
+        debug_log(config, f"Translating message (len={len(last_assistant_message)}):\n{last_assistant_message}\n\n")
 
         # Translate to Chinese
         translated, usage = client.translate(last_assistant_message, 'Chinese')
 
-        # Debug logging after translation
-        with open('d:/code/src/claude-translator/debug_output_hook.log', 'a', encoding='utf-8') as f:
-            f.write(f"Translation result (len={len(translated)}):\n{translated}\n")
-            f.write(f"Usage: {usage}\n\n")
+        debug_log(
+            config,
+            f"Translation result (len={len(translated)}):\n{translated}\nUsage: {usage}\n\n",
+        )
 
         # Show result in a standalone window
-        show_translation_result(last_assistant_message, translated, usage)
+        if show_translation_result is None:
+            try:
+                _, show_translation_result = import_dialogs()
+            except Exception as e:
+                error_log(f"Tkinter dialogs unavailable for result window: {e}\n")
+                write_translation_file(last_assistant_message, translated, usage)
+                continue_hook()
+                return
+
+        try:
+            show_translation_result(last_assistant_message, translated, usage)
+        except Exception as e:
+            error_log(f"Unable to show translation result dialog: {e}\n")
+            write_translation_file(last_assistant_message, translated, usage)
         
         # Continue without adding context to Claude (since we showed it to user)
-        print(json.dumps({"result": "continue"}))
+        continue_hook()
 
     except Exception as e:
         # On error, log to stderr and continue normally
-        with open('d:/code/src/claude-translator/debug_output_error.log', 'a', encoding='utf-8') as f:
-            f.write(f"Error: {e}\n")
+        error_log(f"Error: {e}\n")
         print(f"Output translation hook error: {e}", file=sys.stderr)
-        print(json.dumps({"result": "continue"}))
+        continue_hook()
 
 
 if __name__ == '__main__':
