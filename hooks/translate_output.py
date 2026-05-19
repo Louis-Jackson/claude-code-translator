@@ -6,6 +6,7 @@ import json
 import os
 import io
 from pathlib import Path
+from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -46,6 +47,8 @@ def write_translation_file(original, translated, usage):
 
     content = "\n".join([
         "# Claude Code Translation",
+        "",
+        f"Updated: {datetime.now().isoformat(timespec='seconds')}",
         "",
         "## Original",
         "",
@@ -207,7 +210,8 @@ def main():
             return
 
         # Check if interactive mode is enabled
-        interactive_output = config.get('interactive_output', True)
+        output_mode = config.get('output_mode', 'file')
+        interactive_output = output_mode == 'popup' and config.get('interactive_output', True)
         show_confirm_dialog = None
         show_translation_result = None
 
@@ -243,6 +247,12 @@ def main():
             config,
             f"Translation result (len={len(translated)}):\n{translated}\nUsage: {usage}\n\n",
         )
+
+        if output_mode == 'file':
+            path = write_translation_file(last_assistant_message, translated, usage)
+            debug_log(config, f"Translation written to {path}\n")
+            continue_hook()
+            return
 
         # Show result in a standalone window
         if show_translation_result is None:
