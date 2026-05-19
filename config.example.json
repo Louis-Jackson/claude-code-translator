@@ -11,6 +11,7 @@
   },
   "translate_output": true,
   "output_mode": "file",
+  "project_scoped_output": true,
   "interactive_output": false,
   "debug": false
 }
