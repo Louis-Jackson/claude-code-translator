@@ -1,9 +1,9 @@
 {
   "provider": "qianwen",
   "qianwen": {
-    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "model": "qwen-plus",
-    "api_key": "YOUR_API_KEY_HERE"
+    "base_url": "https://aiping.cn/api/v1",
+    "model": "Doubao-Seed-2.0-mini",
+    "api_key": "QC-cb2dd453e999487d22657beeea40ac32-92702fe58cb32564b60253e57caa9786"
   },
   "baidu": {
     "api_key": "your-baidu-api-key",
