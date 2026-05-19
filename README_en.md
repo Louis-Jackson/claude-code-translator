@@ -80,6 +80,28 @@ Read it with:
 cat ~/.cache/claude-code-translator/latest_translation.md
 ```
 
+### tmux Side Pane
+
+If you use Claude Code inside tmux, open a right-side translation pane:
+
+```bash
+python3 scripts/tmux_translation_pane.py
+```
+
+The default pane width is 40%. You can pass another width:
+
+```bash
+python3 scripts/tmux_translation_pane.py 50%
+```
+
+The pane watches `~/.cache/claude-code-translator/latest_translation.md` and refreshes whenever Claude finishes a translated response. Keep Claude Code in the main pane and read Chinese in the side pane.
+
+You can also run the watcher manually:
+
+```bash
+python3 scripts/watch_translation.py
+```
+
 If you have a Linux graphical desktop and want popups, install Tkinter and set `output_mode`:
 
 ```bash

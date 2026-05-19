@@ -80,6 +80,28 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 cat ~/.cache/claude-code-translator/latest_translation.md
 ```
 
+### tmux 分屏查看
+
+如果你在 tmux 里使用 Claude Code，可以打开右侧实时译文 pane：
+
+```bash
+python3 scripts/tmux_translation_pane.py
+```
+
+默认右侧 pane 宽度为 40%。也可以指定宽度：
+
+```bash
+python3 scripts/tmux_translation_pane.py 50%
+```
+
+这个 pane 会实时刷新 `~/.cache/claude-code-translator/latest_translation.md`。主 pane 继续运行 Claude Code，右侧只用于阅读中文译文。
+
+如果不想自动分屏，也可以手动运行 watcher：
+
+```bash
+python3 scripts/watch_translation.py
+```
+
 如果你有 Linux 图形桌面，并想用弹窗，可安装 Tkinter 并设置 `output_mode`：
 
 ```bash
