@@ -20,5 +20,6 @@ env/
 .DS_Store
 Thumbs.db
 
-# Project specific - protect API key
-config.json
+# Project specific
+# .env is already listed above — secrets live there now
+# config.json is safe to track (no secrets)

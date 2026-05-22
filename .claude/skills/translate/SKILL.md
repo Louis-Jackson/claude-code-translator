@@ -85,5 +85,14 @@ Translate the latest message right now (one-shot):
 cd ~/claude-code-translator && UV_CACHE_DIR=.uv-cache uv run --with-requirements requirements.txt python scripts/watch_sessions.py --once
 ```
 
+### `config`
+Show current config (settings from config.json, secrets from .env):
+```bash
+cat ~/claude-code-translator/config.json
+echo ""
+echo "=== .env ==="
+grep -v '^#' ~/claude-code-translator/.env 2>/dev/null | sed 's/=.*/=***/' || echo "No .env file"
+```
+
 ## If no action matches
 Show available actions and current status.

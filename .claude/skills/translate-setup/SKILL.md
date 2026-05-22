@@ -14,7 +14,8 @@ Set up the claude-code-translator on the current machine. Run these steps in ord
 
 - Verify `uv` is installed: `which uv || pip install uv`
 - Verify `python3` is available
-- Check that `config.json` exists in the project root. If not, copy from `config.example.json` and tell the user to fill in their API key.
+- Check that `config.json` exists in the project root (it should — it's tracked in git).
+- Check that `.env` exists. If not, copy from `.env.example` and tell the user to fill in their API key.
 
 ## 2. Install dependencies
 
@@ -71,7 +72,7 @@ Make sure `~/.bashrc` sources `~/.bash_aliases` (it usually does by default on U
 
 - Run `python install.py` output to confirm hook is registered
 - Run `ccs list` to verify the alias works
-- Check `config.json` has a valid API key (not the placeholder)
+- Check `.env` has a valid API key (not the placeholder)
 
 ## 6. Print summary
 
@@ -80,3 +81,4 @@ Tell the user:
 - For VS Code: run `ccs daemon` in a terminal to start the polling watcher
 - To view translations: run `ccs watch` from any project directory
 - To toggle translation on/off: set `translate_output` in `config.json`
+- API keys are stored in `.env` (never committed to git)

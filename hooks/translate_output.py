@@ -120,13 +120,25 @@ def get_translation_client(config):
 
 
 def load_config():
-    """Load configuration from config.json."""
-    config_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        'config.json'
-    )
+    """Load configuration from config.json with secrets from .env."""
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    config_path = os.path.join(project_root, 'config.json')
     with open(config_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        config = json.load(f)
+
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(project_root, '.env'))
+
+    if 'qianwen' not in config:
+        config['qianwen'] = {}
+    config['qianwen'].setdefault('api_key', os.environ.get('QIANWEN_API_KEY', ''))
+
+    if 'baidu' not in config:
+        config['baidu'] = {}
+    config['baidu'].setdefault('api_key', os.environ.get('BAIDU_API_KEY', ''))
+    config['baidu'].setdefault('app_id', os.environ.get('BAIDU_APP_ID', ''))
+
+    return config
 
 
 def get_project_cwd(input_data):
